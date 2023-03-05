@@ -78,3 +78,20 @@ http://localhost:8080/.well-known/jwks.json
   ]
 }
 ```
+
+### Help
+```
+JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi fireflyCA
+
+Usage:
+  jwt-this [flags]
+
+Flags:
+      --all-policies           Allow token to be used for any policy assigned to the fireflyCA Configuration.
+      --config-name string     Name of the fireflyCA Configuration for which the token is valid.
+  -h, --help                   help for jwt-this
+  -t, --key-type string        Signing key type, ECDSA or RSA. (default "ecdsa")
+      --policy-names strings   Comma separated list of fireflyCA Policy Names for which the token is valid.
+  -p, --port int               TCP port on which JWKS HTTP server will listen. (default 8080)
+  -v, --version                version for jwt-this
+```
