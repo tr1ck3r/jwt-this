@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -59,13 +61,14 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			signingKey, err := generateKeyPair(signingKeyType)
 			if err != nil {
-				panic(err)
+				log.Fatalf("Error: %v\n", err)
 			}
 
 			cred, err := generateToken(signingKey, &claims)
 			if err != nil {
-				panic(err)
+				log.Fatalf("Error: %v\n", err)
 			}
+			os.WriteFile(".token", []byte(cred.Token), 0644)
 			fmt.Printf("Token\n=====\n%s\n\n", cred.Token)
 			fmt.Printf("Header\n======\n%s\n\n", cred.HeaderJSON)
 			fmt.Printf("Claims\n======\n%s\n\n", cred.ClaimsJSON)
@@ -75,7 +78,7 @@ func main() {
 				return signingKey.PublicKey, nil
 			})
 			if err != nil {
-				panic(err)
+				log.Fatalf("Error: %v\n", err)
 			}
 
 			startJwksHttpServer(listenPort, signingKey)
@@ -212,8 +215,9 @@ func startJwksHttpServer(port int, k *SigningKeyPair) {
 		fmt.Fprintf(w, "%s", k.PublicKeyPEM)
 	})
 
-	fmt.Printf("JWKS URL\n========\n%s:%d%s\n", "http://localhost", port, JWKS_URI)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
-		panic(err)
+	fmt.Printf("JWKS URL\n========\n%s:%d%s\n\n", "http://localhost", port, JWKS_URI)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	if err != nil {
+		log.Fatalf("Error: %v\n", err)
 	}
 }
