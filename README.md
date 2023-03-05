@@ -27,3 +27,54 @@ with the *fireflyCA* configuration, and serve up the JWKS on port 12345:
 ```sh
 jwt-this -p 12345 -t rsa --config-name "Eval Config" --all-policies
 ```
+
+### Sample Output
+`CLI`
+```
+Token
+=====
+eyJhbGciOiJFUzI1NiIsImtpZCI6ImZpcmVmbHktY2EtdGVzdC1jbGllbnQiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJqd3QtdGhpcyIsImV4cCI6MTY3ODA2NTcxNCwiaWF0IjoxNjc3OTc5MzE0LCJ2ZW5hZmktZmlyZWZseUNBLmNvbmZpZ3VyYXRpb24iOiJEZW1vIENvbmZpZyIsInZlbmFmaS1maXJlZmx5Q0EuYWxsb3dlZFBvbGljaWVzIjpbIkRlbW8gUG9saWN5IDEiLCJEZW1vIFBvbGljeSAyIl0sInZlbmFmaS1maXJlZmx5Q0EuYWxsb3dBbGxQb2xpY2llcyI6ZmFsc2V9.8494nS-J7Ff9dBJgCwArxuJzWM3ZkXp_Ez2sxE-62M0MsxhSSvbjXHjBxGyF3VsgL1kNrdY7uCv2DUujLu3GFg
+
+Header
+======
+{
+  "alg": "ES256",
+  "kid": "firefly-ca-test-client",
+  "typ": "JWT"
+}
+
+Claims
+======
+{
+  "iss": "jwt-this",
+  "exp": 1678065714,
+  "iat": 1677979314,
+  "venafi-fireflyCA.configuration": "Demo Config",
+  "venafi-fireflyCA.allowedPolicies": [
+    "Demo Policy 1",
+    "Demo Policy 2"
+  ],
+  "venafi-fireflyCA.allowAllPolicies": false
+}
+
+JWKS URL
+========
+http://localhost:8080/.well-known/jwks.json
+```
+
+`GET http://localhost:8080/.well-known/jwks.json`
+```json
+{
+  "keys": [
+    {
+      "use": "sig",
+      "kty": "EC",
+      "kid": "firefly-ca-test-client",
+      "crv": "P-256",
+      "alg": "ES256",
+      "x": "rM3pET9w2z8p0TTlOREvt9PPQ_IRpZuXZUlgP5n-PDQ",
+      "y": "KwXGtbtly6P_0ywb-ceNCwVAZM-oxNOaraIDHVhN9GM"
+    }
+  ]
+}
+```
