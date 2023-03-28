@@ -1,5 +1,6 @@
 jwt-this*
 .token
 .vscode
+Makefile
 *.cmd
 *.zip
