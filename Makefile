@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := default
+.DEFAULT_GOAL := build
 
 IMAGE ?= jwt-this:latest
 
