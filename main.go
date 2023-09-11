@@ -57,7 +57,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.0.1",
+		Version:           "1.0.2",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -65,6 +65,11 @@ func main() {
 			validity, err := time.ParseDuration(validTime)
 			if err != nil {
 				log.Fatalf("error: could not parse validity: %v\n", err)
+			}
+
+			err = checkPortAvailablity(listenPort)
+			if err != nil {
+				log.Fatalf("error: port not available: %v\n", err)
 			}
 
 			signingKey, err := generateKeyPair(signingKeyType)
@@ -76,6 +81,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("error: could not generate token: %v\n", err)
 			}
+
 			os.WriteFile(".token", []byte(cred.Token), 0644)
 			fmt.Printf("Token\n=====\n%s\n\n", cred.Token)
 			fmt.Printf("Header\n======\n%s\n\n", cred.HeaderJSON)
@@ -89,7 +95,13 @@ func main() {
 				log.Fatalf("error: could not verify token signature: %v\n", err)
 			}
 
-			startJwksHttpServer(listenPort, signingKey)
+			fmt.Printf("JWKS URL\n========\nhttp://%s:%d%s\n\n", getPrimaryNetAddr(), listenPort, JWKS_URI)
+
+			err = startJwksHttpServer(listenPort, signingKey)
+			if err != nil {
+				log.Fatalf("error: could not start JWKS HTTP server: %v\n", err)
+			}
+
 		},
 	}
 
@@ -189,7 +201,7 @@ func generateToken(k *SigningKeyPair, c *CustomClaims, validity time.Duration) (
 	return
 }
 
-func startJwksHttpServer(port int, k *SigningKeyPair) {
+func startJwksHttpServer(port int, k *SigningKeyPair) error {
 	// make JWKS available at JWKS_URL
 	http.HandleFunc(JWKS_URI, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -223,11 +235,15 @@ func startJwksHttpServer(port int, k *SigningKeyPair) {
 		fmt.Fprintf(w, "%s", k.PublicKeyPEM)
 	})
 
-	fmt.Printf("JWKS URL\n========\nhttp://%s:%d%s\n\n", getPrimaryNetAddr(), port, JWKS_URI)
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
-	if err != nil {
-		log.Fatalf("error: could not start JWKS HTTP server: %v\n", err)
+	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+}
+
+func checkPortAvailablity(port int) error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err == nil {
+		listener.Close()
 	}
+	return err
 }
 
 func getPrimaryNetAddr() string {
