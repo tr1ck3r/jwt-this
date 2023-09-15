@@ -20,3 +20,16 @@ publish:
 		--output "type=image,push=true" \
 		--tag $(IMAGE) \
 		.
+
+binaries:
+	GOOS=linux   GOARCH=amd64 go build -o jwt-this
+	zip -j jwt-this_linux.zip -m jwt-this
+
+	GOOS=windows GOARCH=amd64 go build -o jwt-this.exe
+	zip -j jwt-this_windows.zip -m jwt-this.exe
+
+	GOOS=darwin  GOARCH=amd64 go build -o jwt-this
+	zip -j jwt-this_mac_amd64.zip -m jwt-this
+
+	GOOS=darwin  GOARCH=arm64 go build -o jwt-this
+	zip -j jwt-this_mac_arm64.zip -m jwt-this
