@@ -1,11 +1,14 @@
 package main
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -23,6 +26,7 @@ import (
 
 const (
 	KEY_ID   = "firefly-test-client"
+	OIDC_URI = "/.well-known/openid-configuration"
 	JWKS_URI = "/.well-known/jwks.json"
 )
 
@@ -57,7 +61,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.0.2",
+		Version:           "1.0.3",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -184,7 +188,7 @@ func generateToken(k *SigningKeyPair, c *CustomClaims, validity time.Duration) (
 	}
 
 	t := jwt.NewWithClaims(method, c)
-	t.Header["kid"] = KEY_ID
+	t.Header["kid"] = jwkThumbprint(k.PublicKey)
 	token, err := t.SignedString(k.PrivateKey)
 	if err != nil {
 		return
@@ -218,7 +222,7 @@ func startJwksHttpServer(port int, k *SigningKeyPair) error {
 			Keys: []jose.JSONWebKey{
 				{
 					Key:       k.PublicKey,
-					KeyID:     KEY_ID,
+					KeyID:     jwkThumbprint(k.PublicKey),
 					Use:       "sig",
 					Algorithm: alg,
 				},
@@ -229,6 +233,12 @@ func startJwksHttpServer(port int, k *SigningKeyPair) error {
 		fmt.Fprintf(w, "%s", string(jwks))
 	})
 
+	// make JWKS URL known through OIDC Discovery
+	http.HandleFunc(OIDC_URI, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{ "jwks_uri": "http://%s:%d%s" }`, getPrimaryNetAddr(), port, JWKS_URI)
+	})
+
 	// make signing public key available at base URL
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/x-pem-file")
@@ -236,6 +246,32 @@ func startJwksHttpServer(port int, k *SigningKeyPair) error {
 	})
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+}
+
+// JWK SHA-256 thumbprint per RFC 7638
+func jwkThumbprint(publicKey interface{}) string {
+	h := crypto.SHA256.New()
+
+	switch k := publicKey.(type) {
+	case *ecdsa.PublicKey:
+		fmt.Fprintf(h, `{"crv":"%s"`, k.Curve.Params().Name)
+		fmt.Fprintf(h, `,"kty":"EC"`)
+		fmt.Fprintf(h, `,"x":"%s"`, base64.RawURLEncoding.EncodeToString(k.X.Bytes()))
+		fmt.Fprintf(h, `,"y":"%s"}`, base64.RawURLEncoding.EncodeToString(k.Y.Bytes()))
+	case *rsa.PublicKey:
+		data := make([]byte, 8)
+		binary.BigEndian.PutUint64(data, uint64(k.E))
+		i := 0
+		for ; i < len(data); i++ {
+			if data[i] != 0x0 { // need to trim leading zeros
+				break
+			}
+		}
+		fmt.Fprintf(h, `{"e":"%s"`, base64.RawURLEncoding.EncodeToString(data[i:]))
+		fmt.Fprintf(h, `,"kty":"RSA"`)
+		fmt.Fprintf(h, `,"n":"%s"}`, base64.RawURLEncoding.EncodeToString(k.N.Bytes()))
+	}
+	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
 func checkPortAvailablity(port int) error {
