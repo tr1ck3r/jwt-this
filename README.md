@@ -35,13 +35,13 @@ jwt-this -p 12345 -t rsa -v 5m30s --config-name "Eval Config" --all-policies
 ```
 Token
 =====
-eyJhbGciOiJFUzI1NiIsImtpZCI6ImZpcmVmbHktdGVzdC1jbGllbnQiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJqd3QtdGhpcyIsImV4cCI6MTY4MDEwNzE5NSwiaWF0IjoxNjgwMDIwNzk1LCJ2ZW5hZmktZmlyZWZseS5jb25maWd1cmF0aW9uIjoiRGVtbyBDb25maWciLCJ2ZW5hZmktZmlyZWZseS5hbGxvd2VkUG9saWNpZXMiOlsiRGVtbyBQb2xpY3kgMSIsIkRlbW8gUG9saWN5IDIiXSwidmVuYWZpLWZpcmVmbHkuYWxsb3dBbGxQb2xpY2llcyI6ZmFsc2V9.dKm4vK3PjWr_9vGD5dQJHUmMyq62XNbDcboOJkab0I5ZYKILRDEpsugso2AOUaWmBG2xJu2ClDe5sCm_oZ6a_w
+eyJhbGciOiJFUzI1NiIsImtpZCI6ImpnRXMzWkl1eVdycWlSUzB6UW1aMkxoblc2QVpfbm9xbmQ1aWhidDRwckUiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJqd3QtdGhpcyIsImV4cCI6MTY5NDg5NTM5NiwiaWF0IjoxNjk0ODA4OTk2LCJ2ZW5hZmktZmlyZWZseS5jb25maWd1cmF0aW9uIjoiRGVtbyBDb25maWciLCJ2ZW5hZmktZmlyZWZseS5hbGxvd2VkUG9saWNpZXMiOlsiRGVtbyBQb2xpY3kgMSIsIkRlbW8gUG9saWN5IDIiXSwidmVuYWZpLWZpcmVmbHkuYWxsb3dBbGxQb2xpY2llcyI6ZmFsc2V9.lWjDPAfmyyK0JXLl_6eSx8FyeSFdb-DKGYptC6DxtZbO04h64h25fyAmn6RnjEJP8TFKmVGfwDFHT4JRDvF4Ow
 
 Header
 ======
 {
   "alg": "ES256",
-  "kid": "firefly-test-client",
+  "kid": "jgEs3ZIuyWrqiRS0zQmZ2LhnW6AZ_noqnd5ihbt4prE",
   "typ": "JWT"
 }
 
@@ -49,8 +49,8 @@ Claims
 ======
 {
   "iss": "jwt-this",
-  "exp": 1680107195,
-  "iat": 1680020795,
+  "exp": 1694895396,
+  "iat": 1694808996,
   "venafi-firefly.configuration": "Demo Config",
   "venafi-firefly.allowedPolicies": [
     "Demo Policy 1",
@@ -71,11 +71,11 @@ http://172.16.1.123:8000/.well-known/jwks.json
     {
       "use": "sig",
       "kty": "EC",
-      "kid": "firefly-test-client",
+      "kid": "jgEs3ZIuyWrqiRS0zQmZ2LhnW6AZ_noqnd5ihbt4prE",
       "crv": "P-256",
       "alg": "ES256",
-      "x": "arkIXtD05R7tU-eC9QmbVzy1wvPzh2yF6s3fxnluV9U",
-      "y": "GuNUPFYkxu45XC-oiW9u1hgqehwzifIeCXLZkC-ijGQ"
+      "x": "LebhalUso0g4nNoMt4PBJ38jsiNzIaSauiTuSUkeWYg",
+      "y": "JWMl6cHO0GZfb64Nyal1O-xJfI2B9D8yhZDRdD5Zs40"
     }
   ]
 }
@@ -97,4 +97,18 @@ Flags:
   -p, --port int               TCP port on which JWKS HTTP server will listen. (default 8000)
   -v, --validity string        Duration for which the generated token will be valid. (default "24h")
       --version                version for jwt-this
+```
+
+## Running as a Container
+
+It may be more convenient in some cases to run `jwt-this` as container so I've built and published a
+container image to [Docker Hub](https://hub.docker.com/r/tr1ck3r/jwt-this).  You can use the following
+`docker-compose.yml` to run `jwt-this` using [Docker Compose](https://docs.docker.com/compose/):
+``` yaml
+services:
+  jwt-this:
+    image: "tr1ck3r/jwt-this:latest"
+    ports:
+      - "8000:8000"
+    command: --config-name "Demo Config" --policy-names "Demo Policy 1","Demo Policy 2"
 ```
