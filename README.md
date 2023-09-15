@@ -112,3 +112,5 @@ services:
       - "8000:8000"
     command: --config-name "Demo Config" --policy-names "Demo Policy 1","Demo Policy 2"
 ```
+
+Special thanks to @MattiasGees for contributing the [Dockerfile](Dockerfile) and [Makefile](Makefile) :clap:
