@@ -52,6 +52,11 @@ Claims
   "sub": "jwt-this",
   "exp": 1694991983,
   "iat": 1694905583,
+  "venafi-firefly.configuration": "Demo Config",
+  "venafi-firefly.allowedPolicies": [
+    "Demo Policy 1",
+    "Demo Policy 2"
+  ],
   "venafi-firefly.allowAllPolicies": false
 }
 
