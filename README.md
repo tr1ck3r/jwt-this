@@ -35,52 +35,54 @@ jwt-this -p 12345 -t rsa -v 5m30s --config-name "Eval Config" --all-policies
 ```
 Token
 =====
-eyJhbGciOiJFUzI1NiIsImtpZCI6ImpnRXMzWkl1eVdycWlSUzB6UW1aMkxoblc2QVpfbm9xbmQ1aWhidDRwckUiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJqd3QtdGhpcyIsImV4cCI6MTY5NDg5NTM5NiwiaWF0IjoxNjk0ODA4OTk2LCJ2ZW5hZmktZmlyZWZseS5jb25maWd1cmF0aW9uIjoiRGVtbyBDb25maWciLCJ2ZW5hZmktZmlyZWZseS5hbGxvd2VkUG9saWNpZXMiOlsiRGVtbyBQb2xpY3kgMSIsIkRlbW8gUG9saWN5IDIiXSwidmVuYWZpLWZpcmVmbHkuYWxsb3dBbGxQb2xpY2llcyI6ZmFsc2V9.lWjDPAfmyyK0JXLl_6eSx8FyeSFdb-DKGYptC6DxtZbO04h64h25fyAmn6RnjEJP8TFKmVGfwDFHT4JRDvF4Ow
+eyJhbGciOiJFUzI1NiIsImtpZCI6IjZnX1hQZGJWT08tWi1rSTc1UE04Z2U5eFJsUWZUZW9NVmFUYmgtNy1kNXMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwOi8vMTkyLjE2OC4wLjIzMzo4MDAwIiwic3ViIjoiand0LXRoaXMiLCJleHAiOjE2OTQ5OTE5ODMsImlhdCI6MTY5NDkwNTU4MywidmVuYWZpLWZpcmVmbHkuYWxsb3dBbGxQb2xpY2llcyI6ZmFsc2V9.5vJFux40E3sMEDy8R9zzDbz4ofZTwtPz3UOiAMkOhjXpfaR-9-sChsduKXoRmL9bzoHLXgz5XcpZiELTYFTPLg
 
 Header
 ======
 {
   "alg": "ES256",
-  "kid": "jgEs3ZIuyWrqiRS0zQmZ2LhnW6AZ_noqnd5ihbt4prE",
+  "kid": "6g_XPdbVOO-Z-kI75PM8ge9xRlQfTeoMVaTbh-7-d5s",
   "typ": "JWT"
 }
 
 Claims
 ======
 {
-  "iss": "jwt-this",
-  "exp": 1694895396,
-  "iat": 1694808996,
-  "venafi-firefly.configuration": "Demo Config",
-  "venafi-firefly.allowedPolicies": [
-    "Demo Policy 1",
-    "Demo Policy 2"
-  ],
+  "iss": "http://10.20.30.40:8000",
+  "sub": "jwt-this",
+  "exp": 1694991983,
+  "iat": 1694905583,
   "venafi-firefly.allowAllPolicies": false
 }
 
-JWKS URL
-========
-http://172.16.1.123:8000/.well-known/jwks.json
+JWKS URL:  http://10.20.30.40:8000/.well-known/jwks.json
+
+OIDC Discovery Base URL:  http://10.20.30.40:8000
 ```
 
-`GET http://172.16.1.123:8000/.well-known/jwks.json`
+`GET http://10.20.30.40:8000/.well-known/jwks.json`
 ```json
 {
   "keys": [
     {
       "use": "sig",
       "kty": "EC",
-      "kid": "jgEs3ZIuyWrqiRS0zQmZ2LhnW6AZ_noqnd5ihbt4prE",
+      "kid": "6g_XPdbVOO-Z-kI75PM8ge9xRlQfTeoMVaTbh-7-d5s",
       "crv": "P-256",
       "alg": "ES256",
-      "x": "LebhalUso0g4nNoMt4PBJ38jsiNzIaSauiTuSUkeWYg",
-      "y": "JWMl6cHO0GZfb64Nyal1O-xJfI2B9D8yhZDRdD5Zs40"
+      "x": "Tl6Sw3nWq2DtSAwC8vxrB0BKRtxHoStifBhrS_iJ0fg",
+      "y": "xa6ACpNO7tktt29nKP5du6DhUMewhVH_-S7XRyp1fSk"
     }
   ]
 }
 ```
-
+`GET http://10.20.30.40:8000/.well-known/openid-configuration`
+```json
+{
+  "issuer": "http://10.20.30.40:8000",
+  "jwks_uri": "http://10.20.30.40:8000/.well-known/jwks.json"
+}
+```
 ## Help
 ```
 JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly

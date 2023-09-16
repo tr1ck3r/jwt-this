@@ -25,10 +25,14 @@ import (
 )
 
 const (
-	KEY_ID   = "firefly-test-client"
-	OIDC_URI = "/.well-known/openid-configuration"
-	JWKS_URI = "/.well-known/jwks.json"
+	OIDC_URI_PATH = "/.well-known/openid-configuration"
+	JWKS_URI_PATH = "/.well-known/jwks.json"
 )
+
+type Endpoint struct {
+	Host string
+	Port int
+}
 
 type SigningKeyPair struct {
 	Type          string
@@ -53,22 +57,21 @@ type Credential struct {
 
 type OidcDiscovery struct {
 	Issuer  string `json:"issuer"`
-	JwksUri string `json:"jwks_uri"`
+	JwksURI string `json:"jwks_uri"`
 }
 
 func main() {
 	var (
+		endpoint       = Endpoint{}
 		signingKeyType string
 		audience       string
 		claims         CustomClaims
-		host           string
-		listenPort     int
 		validTime      string
 	)
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.0.4",
+		Version:           "1.1.0",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -78,7 +81,7 @@ func main() {
 				log.Fatalf("error: could not parse validity: %v\n", err)
 			}
 
-			err = checkPortAvailablity(listenPort)
+			err = checkPortAvailablity(endpoint.Port)
 			if err != nil {
 				log.Fatalf("error: port not available: %v\n", err)
 			}
@@ -88,9 +91,7 @@ func main() {
 				log.Fatalf("error: could not generate key pair: %v\n", err)
 			}
 
-			issuer := fmt.Sprintf("http://%s:%d", host, listenPort)
-
-			cred, err := generateToken(signingKey, issuer, audience, &claims, validity)
+			cred, err := generateToken(signingKey, endpoint.httpURL(), audience, &claims, validity)
 			if err != nil {
 				log.Fatalf("error: could not generate token: %v\n", err)
 			}
@@ -108,9 +109,10 @@ func main() {
 				log.Fatalf("error: could not verify token signature: %v\n", err)
 			}
 
-			fmt.Printf("JWKS URL\n========\n%s%s\n\n", issuer, JWKS_URI)
+			fmt.Printf("JWKS URL:  %s\n\n", endpoint.httpURL(JWKS_URI_PATH))
+			fmt.Printf("OIDC Discovery Base URL:  %s\n\n", endpoint.httpURL())
 
-			err = startJwksHttpServer(listenPort, issuer, signingKey)
+			err = startJwksHttpServer(&endpoint, signingKey)
 			if err != nil {
 				log.Fatalf("error: could not start JWKS HTTP server: %v\n", err)
 			}
@@ -123,8 +125,8 @@ func main() {
 	rootCmd.Flags().StringVar(&claims.Configuration, "config-name", "", "Name of the Firefly Configuration for which the token is valid.")
 	rootCmd.Flags().StringSliceVar(&claims.AllowedPolicies, "policy-names", []string{}, "Comma separated list of Firefly Policy Names for which the token is valid.")
 	rootCmd.Flags().BoolVar(&claims.AllowAllPolicies, "all-policies", false, "Allow token to be used for any policy assigned to the Firefly Configuration.")
-	rootCmd.Flags().StringVar(&host, "host", getPrimaryNetAddr(), "Host to use in claim URIs.")
-	rootCmd.Flags().IntVarP(&listenPort, "port", "p", 8000, "TCP port on which JWKS HTTP server will listen.")
+	rootCmd.Flags().StringVar(&endpoint.Host, "host", getPrimaryNetAddr(), "Host to use in claim URIs.")
+	rootCmd.Flags().IntVarP(&endpoint.Port, "port", "p", 8000, "TCP port on which JWKS HTTP server will listen.")
 	rootCmd.Flags().StringVarP(&validTime, "validity", "v", "24h", "Duration for which the generated token will be valid.")
 	rootCmd.Execute()
 }
@@ -186,6 +188,7 @@ func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, 
 	var method jwt.SigningMethod
 
 	c.RegisteredClaims = jwt.RegisteredClaims{
+		Subject:   "jwt-this",
 		Issuer:    issuer,
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(validity)),
@@ -219,9 +222,9 @@ func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, 
 	return
 }
 
-func startJwksHttpServer(port int, issuer string, k *SigningKeyPair) error {
+func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
 	// make JWKS available at JWKS_URL
-	http.HandleFunc(JWKS_URI, func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(JWKS_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		var alg string
@@ -248,11 +251,11 @@ func startJwksHttpServer(port int, issuer string, k *SigningKeyPair) error {
 	})
 
 	// make JWKS URL known through OIDC Discovery
-	http.HandleFunc(OIDC_URI, func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(OIDC_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		data := OidcDiscovery{
-			Issuer:  issuer,
-			JwksUri: issuer + JWKS_URI,
+			Issuer:  e.httpURL(),
+			JwksURI: e.httpURL(JWKS_URI_PATH),
 		}
 		oidc, _ := json.MarshalIndent(data, "", "  ")
 		fmt.Fprintf(w, "%s", string(oidc))
@@ -264,7 +267,7 @@ func startJwksHttpServer(port int, issuer string, k *SigningKeyPair) error {
 		fmt.Fprintf(w, "%s", k.PublicKeyPEM)
 	})
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	return http.ListenAndServe(fmt.Sprintf(":%d", e.Port), nil)
 }
 
 // JWK SHA-256 thumbprint per RFC 7638
@@ -308,4 +311,8 @@ func getPrimaryNetAddr() string {
 	}
 	defer conn.Close()
 	return conn.LocalAddr().(*net.UDPAddr).IP.String()
+}
+
+func (e *Endpoint) httpURL(path ...string) string {
+	return fmt.Sprintf("http://%s:%d%s", e.Host, e.Port, strings.Join(path, "/"))
 }
