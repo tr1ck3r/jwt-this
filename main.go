@@ -51,17 +51,24 @@ type Credential struct {
 	ClaimsJSON string
 }
 
+type OidcDiscovery struct {
+	Issuer  string `json:"issuer"`
+	JwksUri string `json:"jwks_uri"`
+}
+
 func main() {
 	var (
 		signingKeyType string
+		audience       string
 		claims         CustomClaims
+		host           string
 		listenPort     int
 		validTime      string
 	)
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.0.3",
+		Version:           "1.0.4",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -81,7 +88,9 @@ func main() {
 				log.Fatalf("error: could not generate key pair: %v\n", err)
 			}
 
-			cred, err := generateToken(signingKey, &claims, validity)
+			issuer := fmt.Sprintf("http://%s:%d", host, listenPort)
+
+			cred, err := generateToken(signingKey, issuer, audience, &claims, validity)
 			if err != nil {
 				log.Fatalf("error: could not generate token: %v\n", err)
 			}
@@ -99,9 +108,9 @@ func main() {
 				log.Fatalf("error: could not verify token signature: %v\n", err)
 			}
 
-			fmt.Printf("JWKS URL\n========\nhttp://%s:%d%s\n\n", getPrimaryNetAddr(), listenPort, JWKS_URI)
+			fmt.Printf("JWKS URL\n========\n%s%s\n\n", issuer, JWKS_URI)
 
-			err = startJwksHttpServer(listenPort, signingKey)
+			err = startJwksHttpServer(listenPort, issuer, signingKey)
 			if err != nil {
 				log.Fatalf("error: could not start JWKS HTTP server: %v\n", err)
 			}
@@ -110,9 +119,11 @@ func main() {
 	}
 
 	rootCmd.Flags().StringVarP(&signingKeyType, "key-type", "t", "ecdsa", "Signing key type, ECDSA or RSA.")
+	rootCmd.Flags().StringVarP(&audience, "audience", "a", "", "Include 'aud' claim in the JWT with the specified value.")
 	rootCmd.Flags().StringVar(&claims.Configuration, "config-name", "", "Name of the Firefly Configuration for which the token is valid.")
 	rootCmd.Flags().StringSliceVar(&claims.AllowedPolicies, "policy-names", []string{}, "Comma separated list of Firefly Policy Names for which the token is valid.")
 	rootCmd.Flags().BoolVar(&claims.AllowAllPolicies, "all-policies", false, "Allow token to be used for any policy assigned to the Firefly Configuration.")
+	rootCmd.Flags().StringVar(&host, "host", getPrimaryNetAddr(), "Host to use in claim URIs.")
 	rootCmd.Flags().IntVarP(&listenPort, "port", "p", 8000, "TCP port on which JWKS HTTP server will listen.")
 	rootCmd.Flags().StringVarP(&validTime, "validity", "v", "24h", "Duration for which the generated token will be valid.")
 	rootCmd.Execute()
@@ -171,13 +182,16 @@ func generateKeyPair(signingKeyType string) (keyPair *SigningKeyPair, err error)
 	return nil, fmt.Errorf("invalid signing key type: %s", signingKeyType)
 }
 
-func generateToken(k *SigningKeyPair, c *CustomClaims, validity time.Duration) (cred *Credential, err error) {
+func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, validity time.Duration) (cred *Credential, err error) {
 	var method jwt.SigningMethod
 
 	c.RegisteredClaims = jwt.RegisteredClaims{
-		Issuer:    "jwt-this",
+		Issuer:    issuer,
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(validity)),
+	}
+	if audience != "" {
+		c.RegisteredClaims.Audience = jwt.ClaimStrings{audience}
 	}
 
 	switch k.PrivateKey.(type) {
@@ -205,7 +219,7 @@ func generateToken(k *SigningKeyPair, c *CustomClaims, validity time.Duration) (
 	return
 }
 
-func startJwksHttpServer(port int, k *SigningKeyPair) error {
+func startJwksHttpServer(port int, issuer string, k *SigningKeyPair) error {
 	// make JWKS available at JWKS_URL
 	http.HandleFunc(JWKS_URI, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -236,7 +250,12 @@ func startJwksHttpServer(port int, k *SigningKeyPair) error {
 	// make JWKS URL known through OIDC Discovery
 	http.HandleFunc(OIDC_URI, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{ "jwks_uri": "http://%s:%d%s" }`, getPrimaryNetAddr(), port, JWKS_URI)
+		data := OidcDiscovery{
+			Issuer:  issuer,
+			JwksUri: issuer + JWKS_URI,
+		}
+		oidc, _ := json.MarshalIndent(data, "", "  ")
+		fmt.Fprintf(w, "%s", string(oidc))
 	})
 
 	// make signing public key available at base URL

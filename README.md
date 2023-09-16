@@ -1,11 +1,11 @@
 # jwt-this
 
-**jwt-this** is a command line utility I created to simplify demonstration, evaluation, and
-simple testing with *Venafi Firefly*.  When run, it generates a new signing key pair,
-uses it to sign and output a new JSON Web Token (JWT) containing specified *Firefly*-related
-claims, and starts a basic HTTP server (listening on port 8000 by default) where the
-signing public key is published via a JSON Web Key Set (JWKS) so it can be used by *Firefly* 
-to verify the signature of the JWT.  
+**jwt-this** (pronounced "jot this") is a command line utility I created to simplify
+demonstration, evaluation, and simple testing with *Venafi Firefly*.  When run, it generates
+a new signing key pair, uses it to sign and output a new JSON Web Token (JWT) containing
+specified *Firefly*-related claims, and starts a basic HTTP server (listening on port 8000 by
+default) where the signing public key is published via a JSON Web Key Set (JWKS) so it can be
+used by *Firefly* to verify the signature of the JWT.  
 
 Use the JWT as the `Bearer` token value for the `Authorization` header required when requesting
 certificates from *Firefly* via gRPC, GraphQL, or REST.  Make sure the *Firefly* has network
@@ -90,8 +90,10 @@ Usage:
 
 Flags:
       --all-policies           Allow token to be used for any policy assigned to the Firefly Configuration.
+  -a, --audience string        Include 'aud' claim in the JWT with the specified value.
       --config-name string     Name of the Firefly Configuration for which the token is valid.
   -h, --help                   help for jwt-this
+      --host string            Host to use in claim URIs. (default "192.168.0.233")
   -t, --key-type string        Signing key type, ECDSA or RSA. (default "ecdsa")
       --policy-names strings   Comma separated list of Firefly Policy Names for which the token is valid.
   -p, --port int               TCP port on which JWKS HTTP server will listen. (default 8000)
