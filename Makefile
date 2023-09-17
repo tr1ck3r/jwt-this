@@ -22,14 +22,14 @@ publish:
 		.
 
 binaries:
-	GOOS=linux   GOARCH=amd64 go build -o jwt-this
+	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o jwt-this
 	zip -j jwt-this_linux.zip -m jwt-this
 
-	GOOS=windows GOARCH=amd64 go build -o jwt-this.exe
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o jwt-this.exe
 	zip -j jwt-this_windows.zip -m jwt-this.exe
 
-	GOOS=darwin  GOARCH=amd64 go build -o jwt-this
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w" -o jwt-this
 	zip -j jwt-this_mac_amd64.zip -m jwt-this
 
-	GOOS=darwin  GOARCH=arm64 go build -o jwt-this
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w" -o jwt-this
 	zip -j jwt-this_mac_arm64.zip -m jwt-this
