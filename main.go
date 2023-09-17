@@ -223,7 +223,7 @@ func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, 
 }
 
 func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
-	// make JWKS available at JWKS_URL
+	// make JWKS available at JWKS_URI_PATH
 	http.HandleFunc(JWKS_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

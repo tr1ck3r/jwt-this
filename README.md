@@ -1,17 +1,17 @@
 # jwt-this
 
 **jwt-this** (pronounced "jot this") is a command line utility I created to simplify
-demonstration, evaluation, and simple testing with *Venafi Firefly*.  When run, it generates
-a new signing key pair, uses it to sign and output a new JSON Web Token (JWT) containing
-specified *Firefly*-related claims, and starts a basic HTTP server (listening on port 8000 by
-default) where the signing public key is published via a JSON Web Key Set (JWKS) so it can be
-used by *Firefly* to verify the signature of the JWT.  
+demonstration, evaluation, and simple testing with [*Venafi Firefly*](https://venafi.com/firefly/).
+When run, it generates a new signing key pair, uses it to sign and output a new JSON Web Token
+(JWT) containing specified *Firefly*-related claims, and starts a basic HTTP server (listening on
+port 8000 by default) where the signing public key is published via a JSON Web Key Set (JWKS) so it
+can be used by *Firefly* to verify the signature of the JWT.
 
 Use the JWT as the `Bearer` token value for the `Authorization` header required when requesting
 certificates from *Firefly* via gRPC, GraphQL, or REST.  Make sure the *Firefly* has network
 access to the JWKS endpoint and use the appropriate URL in the *Firefly* Configuration (replace
 "localhost" in the output URL with the FQDN or IP address of the host *Firefly* can reach,
-e.g., http://172.16.1.123:8000/.well-known/jwks.json).
+e.g., http://10.20.30.40:8000/.well-known/jwks.json).
 
 ## Examples
 
@@ -35,13 +35,13 @@ jwt-this -p 12345 -t rsa -v 5m30s --config-name "Eval Config" --all-policies
 ```
 Token
 =====
-eyJhbGciOiJFUzI1NiIsImtpZCI6IjZnX1hQZGJWT08tWi1rSTc1UE04Z2U5eFJsUWZUZW9NVmFUYmgtNy1kNXMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwOi8vMTkyLjE2OC4wLjIzMzo4MDAwIiwic3ViIjoiand0LXRoaXMiLCJleHAiOjE2OTQ5OTE5ODMsImlhdCI6MTY5NDkwNTU4MywidmVuYWZpLWZpcmVmbHkuYWxsb3dBbGxQb2xpY2llcyI6ZmFsc2V9.5vJFux40E3sMEDy8R9zzDbz4ofZTwtPz3UOiAMkOhjXpfaR-9-sChsduKXoRmL9bzoHLXgz5XcpZiELTYFTPLg
+eyJhbGciOiJFUzI1NiIsImtpZCI6IjY1MkQxeVFKVWZWRGduSmFFbzNMNEluQnNldDRsQlA1NG4xSzAxMnB0WlkiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwOi8vMTAuMjAuMzAuNDA6ODAwMCIsInN1YiI6Imp3dC10aGlzIiwiZXhwIjoxNjk1MDc2ODI0LCJpYXQiOjE2OTQ5OTA0MjQsInZlbmFmaS1maXJlZmx5LmNvbmZpZ3VyYXRpb24iOiJEZW1vIENvbmZpZyIsInZlbmFmaS1maXJlZmx5LmFsbG93ZWRQb2xpY2llcyI6WyJEZW1vIFBvbGljeSAxIiwiRGVtbyBQb2xpY3kgMiJdLCJ2ZW5hZmktZmlyZWZseS5hbGxvd0FsbFBvbGljaWVzIjpmYWxzZX0.a64ugg4It-Pcq6--WsG6rt3BjjL_V38S_IHIx2cMiFSiqEwCJcNNXP4nkDD33jdXVOS3Iaivo8UtjK4xctQr7g
 
 Header
 ======
 {
   "alg": "ES256",
-  "kid": "6g_XPdbVOO-Z-kI75PM8ge9xRlQfTeoMVaTbh-7-d5s",
+  "kid": "652D1yQJUfVDgnJaEo3L4InBset4lBP54n1K012ptZY",
   "typ": "JWT"
 }
 
@@ -50,8 +50,8 @@ Claims
 {
   "iss": "http://10.20.30.40:8000",
   "sub": "jwt-this",
-  "exp": 1694991983,
-  "iat": 1694905583,
+  "exp": 1695076824,
+  "iat": 1694990424,
   "venafi-firefly.configuration": "Demo Config",
   "venafi-firefly.allowedPolicies": [
     "Demo Policy 1",
@@ -72,11 +72,11 @@ OIDC Discovery Base URL:  http://10.20.30.40:8000
     {
       "use": "sig",
       "kty": "EC",
-      "kid": "6g_XPdbVOO-Z-kI75PM8ge9xRlQfTeoMVaTbh-7-d5s",
+      "kid": "652D1yQJUfVDgnJaEo3L4InBset4lBP54n1K012ptZY",
       "crv": "P-256",
       "alg": "ES256",
-      "x": "Tl6Sw3nWq2DtSAwC8vxrB0BKRtxHoStifBhrS_iJ0fg",
-      "y": "xa6ACpNO7tktt29nKP5du6DhUMewhVH_-S7XRyp1fSk"
+      "x": "9GPhULzc0i8R6r7j5CQvz_TEId57cFEC93oaSqLy5_w",
+      "y": "05BKmW0A1s0tdjzmJ0YJhhWfy0U5inxbo21FFyBGwpM"
     }
   ]
 }
@@ -122,4 +122,5 @@ services:
     command: --config-name "Demo Config" --policy-names "Demo Policy 1","Demo Policy 2"
 ```
 
-Special thanks to @MattiasGees for contributing the [Dockerfile](Dockerfile) and [Makefile](Makefile) :clap:
+Special thanks to [@MattiasGees](https://github.com/MattiasGees) for contributing the
+[Dockerfile](Dockerfile) and [Makefile](Makefile) :clap:
