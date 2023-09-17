@@ -100,7 +100,7 @@ Flags:
   -a, --audience string        Include 'aud' claim in the JWT with the specified value.
       --config-name string     Name of the Firefly Configuration for which the token is valid.
   -h, --help                   help for jwt-this
-      --host string            Host to use in claim URIs. (default "192.168.0.233")
+      --host string            Host to use in claim URIs. (default "<host-primary-ip>")
   -t, --key-type string        Signing key type, ECDSA or RSA. (default "ecdsa")
       --policy-names strings   Comma separated list of Firefly Policy Names for which the token is valid.
   -p, --port int               TCP port on which JWKS HTTP server will listen. (default 8000)
