@@ -9,9 +9,8 @@ can be used by *Firefly* to verify the signature of the JWT.
 
 Use the JWT as the `Bearer` token value for the `Authorization` header required when requesting
 certificates from *Firefly* via gRPC, GraphQL, or REST.  Make sure the *Firefly* has network
-access to the JWKS endpoint and use the appropriate URL in the *Firefly* Configuration (replace
-"localhost" in the output URL with the FQDN or IP address of the host *Firefly* can reach,
-e.g., http://10.20.30.40:8000/.well-known/jwks.json).
+access to the JWKS endpoint and use the appropriate URL in the *Firefly* Configuration (use `--host`
+when running `jwt-this` to specify a hostname, FQDN or IP address *Firefly* can reach).
 
 ## Examples
 
