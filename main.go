@@ -109,7 +109,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&claims.AllowAllPolicies, "all-policies", false, "Allow token to be used for any policy assigned to the Firefly Configuration.")
 	rootCmd.Flags().StringVar(&endpoint.Host, "host", getPrimaryNetAddr(), "Host to use in claim URIs.")
 	rootCmd.Flags().IntVarP(&endpoint.Port, "port", "p", 8000, "TCP port on which JWKS HTTP server will listen.")
-	rootCmd.Flags().BoolVar(&endpoint.UseTLS, "tls", false, "Use HTTPS (with a self-signed certificate) instead of HTTP for URLs.")
+	rootCmd.Flags().BoolVar(&endpoint.UseTLS, "tls", false, "Generate a self-signed certificate and use HTTPS instead of HTTP for URLs.")
 	rootCmd.Flags().StringVarP(&validTime, "validity", "v", "24h", "Duration for which the generated token will be valid.")
 	rootCmd.Execute()
 }
