@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"log"
@@ -25,30 +26,10 @@ const (
 )
 
 type Endpoint struct {
-	Host   string
-	Port   int
-	UseTLS bool
-}
-
-type SigningKeyPair struct {
-	Type          string
-	PublicKey     interface{}
-	PublicKeyPEM  string
-	PrivateKey    interface{}
-	PrivateKeyPEM string
-}
-
-type CustomClaims struct {
-	jwt.RegisteredClaims
-	Configuration    string   `json:"venafi-firefly.configuration,omitempty"`
-	AllowedPolicies  []string `json:"venafi-firefly.allowedPolicies,omitempty"`
-	AllowAllPolicies bool     `json:"venafi-firefly.allowAllPolicies"`
-}
-
-type Credential struct {
-	Token      string
-	HeaderJSON string
-	ClaimsJSON string
+	Host    string
+	Port    int
+	UseTLS  bool
+	KeyCert *[]tls.Certificate
 }
 
 type OidcDiscovery struct {
@@ -82,7 +63,7 @@ func main() {
 				log.Fatalf("error: port not available: %v\n", err)
 			}
 
-			signingKey, tlsKeyCert, err := generateKeyPair(signingKeyType, endpoint.Host)
+			signingKey, err := generateKeyPair(signingKeyType)
 			if err != nil {
 				log.Fatalf("error: could not generate key pair: %v\n", err)
 			}
@@ -105,10 +86,15 @@ func main() {
 				log.Fatalf("error: could not verify token signature: %v\n", err)
 			}
 
+			if createTLSCertificate(&endpoint, signingKey.PublicKey, signingKey.PrivateKey) != nil {
+				log.Fatalf("error: could not make self-signed TLS certificate: %v\n", err)
+			}
+
+			os.WriteFile(".trust", endpoint.tlsCertificatePEM(), 0644)
 			fmt.Printf("JWKS URL:  %s\n\n", endpoint.httpURL(JWKS_URI_PATH))
 			fmt.Printf("OIDC Discovery Base URL:  %s\n\n", endpoint.httpURL())
 
-			err = startJwksHttpServer(&endpoint, signingKey, tlsKeyCert)
+			err = startJwksHttpServer(&endpoint, signingKey)
 			if err != nil {
 				log.Fatalf("error: could not start JWKS HTTP server: %v\n", err)
 			}
@@ -128,7 +114,7 @@ func main() {
 	rootCmd.Execute()
 }
 
-func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, c *[]tls.Certificate) error {
+func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
 	// make JWKS available at JWKS_URI_PATH
 	http.HandleFunc(JWKS_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -173,13 +159,13 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, c *[]tls.Certificate) e
 		fmt.Fprintf(w, "%s", k.PublicKeyPEM)
 	})
 
-	if c != nil {
+	if e.KeyCert != nil {
 		s := &http.Server{
 			Addr:     fmt.Sprintf(":%d", e.Port),
 			ErrorLog: log.New(io.Discard, "", log.LstdFlags),
 			Handler:  nil,
 			TLSConfig: &tls.Config{
-				Certificates: *c,
+				Certificates: *e.KeyCert,
 			},
 		}
 		return s.ListenAndServeTLS("", "")
@@ -198,7 +184,7 @@ func checkPortAvailablity(port int) error {
 func getPrimaryNetAddr() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
-		return "0.0.0.0"
+		return "127.0.0.1" // localhost
 	}
 	defer conn.Close()
 	return conn.LocalAddr().(*net.UDPAddr).IP.String()
@@ -210,4 +196,14 @@ func (e *Endpoint) httpURL(path ...string) string {
 		protocol = "https"
 	}
 	return fmt.Sprintf("%s://%s:%d%s", protocol, e.Host, e.Port, strings.Join(path, "/"))
+}
+
+func (e *Endpoint) tlsCertificatePEM() []byte {
+	if e.KeyCert != nil {
+		return pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: (*e.KeyCert)[0].Certificate[0],
+		})
+	}
+	return nil
 }

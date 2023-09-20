@@ -24,21 +24,42 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func generateKeyPair(signingKeyType, tlsServerName string) (keyPair *SigningKeyPair, tlsKeyCert *[]tls.Certificate, err error) {
+type SigningKeyPair struct {
+	Type          string
+	PublicKey     interface{}
+	PublicKeyPEM  string
+	PrivateKey    interface{}
+	PrivateKeyPEM string
+}
+
+type CustomClaims struct {
+	jwt.RegisteredClaims
+	Configuration    string   `json:"venafi-firefly.configuration,omitempty"`
+	AllowedPolicies  []string `json:"venafi-firefly.allowedPolicies,omitempty"`
+	AllowAllPolicies bool     `json:"venafi-firefly.allowAllPolicies"`
+}
+
+type Credential struct {
+	Token      string
+	HeaderJSON string
+	ClaimsJSON string
+}
+
+func generateKeyPair(signingKeyType string) (keyPair *SigningKeyPair, err error) {
 	switch strings.ToLower(signingKeyType) {
 
 	case "ecdsa":
 		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		keyPair = &SigningKeyPair{
@@ -48,25 +69,20 @@ func generateKeyPair(signingKeyType, tlsServerName string) (keyPair *SigningKeyP
 			PrivateKey:    privateKey,
 			PrivateKeyPEM: string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: publicKeyBytes})),
 		}
-
-		tlsKeyCert, err = tlsCertSelfSigned(tlsServerName, &privateKey.PublicKey, privateKey)
-		if err != nil {
-			return nil, nil, err
-		}
-		return keyPair, tlsKeyCert, nil
+		return keyPair, nil
 
 	case "rsa":
 		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		keyPair = &SigningKeyPair{
@@ -76,15 +92,10 @@ func generateKeyPair(signingKeyType, tlsServerName string) (keyPair *SigningKeyP
 			PrivateKey:    privateKey,
 			PrivateKeyPEM: string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: publicKeyBytes})),
 		}
-
-		tlsKeyCert, err = tlsCertSelfSigned(tlsServerName, &privateKey.PublicKey, privateKey)
-		if err != nil {
-			return nil, nil, err
-		}
-		return keyPair, tlsKeyCert, nil
+		return keyPair, nil
 	}
 
-	return nil, nil, fmt.Errorf("invalid signing key type: %s", signingKeyType)
+	return nil, fmt.Errorf("invalid signing key type: %s", signingKeyType)
 }
 
 func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, validity time.Duration) (cred *Credential, err error) {
@@ -125,41 +136,30 @@ func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, 
 	return
 }
 
-func tlsCertSelfSigned(name string, publicKey any, privateKey any) (keyCert *[]tls.Certificate, err error) {
-
-	sanValue, _ := asn1.Marshal([]asn1.RawValue{{Tag: 2 /* dNSName */, Class: 2, Bytes: []byte(name)}})
-	ip := net.ParseIP(name)
-	if ip != nil && ip.To4() != nil {
-		sanValue, _ = asn1.Marshal([]asn1.RawValue{{Tag: 7 /* iPAddress */, Class: 2, Bytes: []byte(ip.To4())}})
-	}
-
-	template := x509.Certificate{
-		ExtraExtensions: []pkix.Extension{
+func createTLSCertificate(e *Endpoint, publicKey any, privateKey any) error {
+	if e.UseTLS {
+		template := x509.Certificate{
+			Subject:         pkix.Name{CommonName: "jwt-this"},
+			Issuer:          pkix.Name{CommonName: "jwt-this"},
+			ExtraExtensions: []pkix.Extension{subjAltNameExt(e.Host)},
+			SerialNumber:    big.NewInt(random.Int63()),
+			NotBefore:       time.Now(),
+			NotAfter:        time.Now().Add(7 * 24 * time.Hour),
+			KeyUsage:        x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+			ExtKeyUsage:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		}
+		certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey, privateKey)
+		if err != nil {
+			return err
+		}
+		e.KeyCert = &[]tls.Certificate{
 			{
-				Id:       asn1.ObjectIdentifier{2, 5, 29, 17}, // subject alternative name
-				Critical: true,
-				Value:    sanValue,
+				Certificate: [][]byte{certBytes},
+				PrivateKey:  privateKey,
 			},
-		},
-		Subject:      pkix.Name{CommonName: "jwt-this"},
-		Issuer:       pkix.Name{CommonName: "jwt-this"},
-		SerialNumber: big.NewInt(random.Int63()),
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(7 * 24 * time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		}
 	}
-	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create self-signed TLS certificate: %v", err)
-	}
-	keyCert = &[]tls.Certificate{
-		{
-			Certificate: [][]byte{certBytes},
-			PrivateKey:  privateKey,
-		},
-	}
-	return keyCert, nil
+	return nil
 }
 
 // JWK SHA-256 thumbprint per RFC 7638
@@ -186,4 +186,21 @@ func jwkThumbprint(publicKey interface{}) string {
 		fmt.Fprintf(h, `,"n":"%s"}`, base64.RawURLEncoding.EncodeToString(k.N.Bytes()))
 	}
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+}
+
+func subjAltNameExt(host string) (ext pkix.Extension) {
+	san := asn1.RawValue{Tag: 2 /* dNSName */, Class: 2, Bytes: []byte(host)}
+	ip := net.ParseIP(host)
+	if ip != nil && ip.To4() != nil {
+		san = asn1.RawValue{Tag: 7 /* iPAddress */, Class: 2, Bytes: []byte(ip.To4())}
+	}
+	sanValue, err := asn1.Marshal([]asn1.RawValue{san})
+	if err == nil {
+		ext = pkix.Extension{
+			Id:       asn1.ObjectIdentifier{2, 5, 29, 17}, // subject alternative name
+			Critical: true,
+			Value:    sanValue,
+		}
+	}
+	return
 }
