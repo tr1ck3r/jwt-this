@@ -103,6 +103,7 @@ Flags:
   -t, --key-type string        Signing key type, ECDSA or RSA. (default "ecdsa")
       --policy-names strings   Comma separated list of Firefly Policy Names for which the token is valid.
   -p, --port int               TCP port on which JWKS HTTP server will listen. (default 8000)
+      --tls                    Generate a self-signed certificate and use HTTPS instead of HTTP for URLs.
   -v, --validity string        Duration for which the generated token will be valid. (default "24h")
       --version                version for jwt-this
 ```
