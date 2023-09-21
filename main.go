@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	OIDC_URI_PATH = "/.well-known/openid-configuration"
-	JWKS_URI_PATH = "/.well-known/jwks.json"
+	OIDC_URI_PATH       = "/.well-known/openid-configuration"
+	JWKS_URI_PATH       = "/.well-known/jwks.json"
+	PUBLIC_KEY_FILENAME = "public-key.pem"
 )
 
 type Endpoint struct {
@@ -48,7 +49,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.1.1",
+		Version:           "1.1.2",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -117,6 +118,7 @@ func main() {
 func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
 	// make JWKS available at JWKS_URI_PATH
 	http.HandleFunc(JWKS_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "application/json")
 
 		var alg string
@@ -144,6 +146,7 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
 
 	// make JWKS URL known through OIDC Discovery
 	http.HandleFunc(OIDC_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "application/json")
 		data := OidcDiscovery{
 			Issuer:  e.httpURL(),
@@ -153,10 +156,29 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
 		fmt.Fprintf(w, "%s", string(oidc))
 	})
 
-	// make signing public key available at base URL
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	// make signing public key available to download
+	http.HandleFunc("/"+PUBLIC_KEY_FILENAME, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "application/x-pem-file")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, PUBLIC_KEY_FILENAME))
 		fmt.Fprintf(w, "%s", k.PublicKeyPEM)
+	})
+
+	// quick links at base URL
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "No-Store")
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprintf(w, "<html><head><title>jwt-this</title>")
+		fmt.Fprintf(w, "<style>.{font-family: arial;} a{text-decoration: none} a:hover{text-decoration: underline;}</style>")
+		fmt.Fprintf(w, "</head><body>")
+		fmt.Fprintf(w, "<h1>jwt-this</h1><ul>")
+		fmt.Fprintf(w, `<li><a href="%s">JSON Web Key Set (JWKS)</a></li>`, JWKS_URI_PATH)
+		fmt.Fprintf(w, `<li><a href="%s">OpenID Connect (OIDC) Configuration</a></li>`, OIDC_URI_PATH)
+		fmt.Fprintf(w, `<li><a href="/%s">Public Key [%s]</a></li></ul>`, PUBLIC_KEY_FILENAME, k.Type)
+		fmt.Fprintf(w, `<a href="https://github.com/tr1ck3r/jwt-this#readme">README</a> | `)
+		fmt.Fprintf(w, `<a href="https://github.com/tr1ck3r/jwt-this/releases/latest">Latest Release</a> | `)
+		fmt.Fprintf(w, `<a href="https://hub.docker.com/r/tr1ck3r/jwt-this">Docker Image</a>`)
+		fmt.Fprintf(w, "</body></html>")
 	})
 
 	if e.KeyCert != nil {
