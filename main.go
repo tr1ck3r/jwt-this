@@ -220,7 +220,7 @@ func homePageHTML(keyType string) string {
   </ul>
   <a href="https://github.com/tr1ck3r/jwt-this#readme">README</a> |
   <a href="https://github.com/tr1ck3r/jwt-this/releases/latest">Latest Release</a> |
-  <a href="https://hub.docker.com/r/tr1ck3r/jwt-this">Docker Image</a>
+  <a href="https://hub.docker.com/r/tr1ck3r/jwt-this">Container Image</a>
 </body>
 </html>
 `, JWKS_URI_PATH, OIDC_URI_PATH, PUBLIC_KEY_FILENAME, strings.Replace(keyType, "_", " ", 1))
