@@ -49,7 +49,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.1.2",
+		Version:           "1.1.3",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -99,7 +99,6 @@ func main() {
 			if err != nil {
 				log.Fatalf("error: could not start JWKS HTTP server: %v\n", err)
 			}
-
 		},
 	}
 
@@ -107,7 +106,6 @@ func main() {
 	rootCmd.Flags().StringVarP(&audience, "audience", "a", "", "Include 'aud' claim in the JWT with the specified value.")
 	rootCmd.Flags().StringVar(&claims.Configuration, "config-name", "", "Name of the Firefly Configuration for which the token is valid.")
 	rootCmd.Flags().StringSliceVar(&claims.AllowedPolicies, "policy-names", []string{}, "Comma separated list of Firefly Policy Names for which the token is valid.")
-	rootCmd.Flags().BoolVar(&claims.AllowAllPolicies, "all-policies", false, "Allow token to be used for any policy assigned to the Firefly Configuration.")
 	rootCmd.Flags().StringVar(&endpoint.Host, "host", getPrimaryNetAddr(), "Host to use in claim URIs.")
 	rootCmd.Flags().IntVarP(&endpoint.Port, "port", "p", 8000, "TCP port on which JWKS HTTP server will listen.")
 	rootCmd.Flags().BoolVar(&endpoint.UseTLS, "tls", false, "Generate a self-signed certificate and use HTTPS instead of HTTP for URLs.")
@@ -168,17 +166,7 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, "<html><head><title>jwt-this</title>")
-		fmt.Fprintf(w, "<style>.{font-family: arial;} a{text-decoration: none} a:hover{text-decoration: underline;}</style>")
-		fmt.Fprintf(w, "</head><body>")
-		fmt.Fprintf(w, "<h1>jwt-this</h1><ul>")
-		fmt.Fprintf(w, `<li><a href="%s">JSON Web Key Set (JWKS)</a></li>`, JWKS_URI_PATH)
-		fmt.Fprintf(w, `<li><a href="%s">OpenID Connect (OIDC) Configuration</a></li>`, OIDC_URI_PATH)
-		fmt.Fprintf(w, `<li><a href="/%s">Public Key [%s]</a></li></ul>`, PUBLIC_KEY_FILENAME, k.Type)
-		fmt.Fprintf(w, `<a href="https://github.com/tr1ck3r/jwt-this#readme">README</a> | `)
-		fmt.Fprintf(w, `<a href="https://github.com/tr1ck3r/jwt-this/releases/latest">Latest Release</a> | `)
-		fmt.Fprintf(w, `<a href="https://hub.docker.com/r/tr1ck3r/jwt-this">Docker Image</a>`)
-		fmt.Fprintf(w, "</body></html>")
+		fmt.Fprintf(w, homePageHTML(k.Type))
 	})
 
 	if e.KeyCert != nil {
@@ -210,6 +198,32 @@ func getPrimaryNetAddr() string {
 	}
 	defer conn.Close()
 	return conn.LocalAddr().(*net.UDPAddr).IP.String()
+}
+
+func homePageHTML(keyType string) string {
+	return fmt.Sprintf(`
+<html>
+<head>
+  <title>jwt-this</title>
+  <style>
+    . { font-family: arial }
+    a { text-decoration: none }
+    a:hover { text-decoration: underline }
+  </style>
+</head>
+<body>
+  <h1>jwt-this</h1>
+  <ul>
+    <li><a href="%s">JSON Web Key Set (JWKS)</a></li>
+    <li><a href="%s">OpenID Connect (OIDC) Configuration</a></li>
+    <li><a href="/%s">Public Key [%s]</a></li>
+  </ul>
+  <a href="https://github.com/tr1ck3r/jwt-this#readme">README</a> |
+  <a href="https://github.com/tr1ck3r/jwt-this/releases/latest">Latest Release</a> |
+  <a href="https://hub.docker.com/r/tr1ck3r/jwt-this">Container Image</a>
+</body>
+</html>
+`, JWKS_URI_PATH, OIDC_URI_PATH, PUBLIC_KEY_FILENAME, strings.Replace(keyType, "_", " ", 1))
 }
 
 func (e *Endpoint) httpURL(path ...string) string {

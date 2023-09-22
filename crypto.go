@@ -36,7 +36,7 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 	Configuration    string   `json:"venafi-firefly.configuration,omitempty"`
 	AllowedPolicies  []string `json:"venafi-firefly.allowedPolicies,omitempty"`
-	AllowAllPolicies bool     `json:"venafi-firefly.allowAllPolicies"`
+	AllowAllPolicies *bool    `json:"venafi-firefly.allowAllPolicies,omitempty"`
 }
 
 type Credential struct {
@@ -100,6 +100,12 @@ func generateKeyPair(signingKeyType string) (keyPair *SigningKeyPair, err error)
 
 func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, validity time.Duration) (cred *Credential, err error) {
 	var method jwt.SigningMethod
+
+	// only include venafi-firefly.allowAllPolicies claim when at least one of the other venafi-firefly claims is set
+	anyPolicy := (len(c.AllowedPolicies) == 0)
+	if c.Configuration != "" || !anyPolicy {
+		c.AllowAllPolicies = &anyPolicy
+	}
 
 	c.RegisteredClaims = jwt.RegisteredClaims{
 		Subject:   "jwt-this",
