@@ -232,7 +232,7 @@ func getPrimaryNetAddr() string {
 }
 
 func homePageHTML(keyType string) string {
-	return fmt.Sprintf(`
+	return strings.TrimSpace(fmt.Sprintf(`
 <html>
 <head>
   <title>jwt-this</title>
@@ -255,7 +255,7 @@ func homePageHTML(keyType string) string {
   <a href="https://hub.docker.com/r/tr1ck3r/jwt-this">Container Image</a>
 </body>
 </html>
-`, JWKS_URI_PATH, OIDC_URI_PATH, PUBLIC_KEY_FILENAME, strings.Replace(keyType, "_", " ", 1))
+`, JWKS_URI_PATH, OIDC_URI_PATH, PUBLIC_KEY_FILENAME, strings.Replace(keyType, "_", " ", 1)))
 }
 
 func (e *Endpoint) httpURL(path ...string) string {
