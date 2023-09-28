@@ -32,6 +32,12 @@ type SigningKeyPair struct {
 	PrivateKeyPEM string
 }
 
+type TokenConfig struct {
+	Audience string
+	Claims   *CustomClaims
+	Validity time.Duration
+}
+
 type CustomClaims struct {
 	jwt.RegisteredClaims
 	Configuration    string   `json:"venafi-firefly.configuration,omitempty"`
@@ -98,23 +104,23 @@ func generateKeyPair(signingKeyType string) (keyPair *SigningKeyPair, err error)
 	return nil, fmt.Errorf("invalid signing key type: %s", signingKeyType)
 }
 
-func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, validity time.Duration) (cred *Credential, err error) {
+func generateToken(k *SigningKeyPair, issuer string, cfg TokenConfig) (cred *Credential, err error) {
 	var method jwt.SigningMethod
 
 	// only include venafi-firefly.allowAllPolicies claim when at least one of the other venafi-firefly claims is set
-	anyPolicy := (len(c.AllowedPolicies) == 0)
-	if c.Configuration != "" || !anyPolicy {
-		c.AllowAllPolicies = &anyPolicy
+	anyPolicy := (len(cfg.Claims.AllowedPolicies) == 0)
+	if cfg.Claims.Configuration != "" || !anyPolicy {
+		cfg.Claims.AllowAllPolicies = &anyPolicy
 	}
 
-	c.RegisteredClaims = jwt.RegisteredClaims{
+	cfg.Claims.RegisteredClaims = jwt.RegisteredClaims{
 		Subject:   "jwt-this",
 		Issuer:    issuer,
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(validity)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(cfg.Validity)),
 	}
-	if audience != "" {
-		c.RegisteredClaims.Audience = jwt.ClaimStrings{audience}
+	if cfg.Audience != "" {
+		cfg.Claims.RegisteredClaims.Audience = jwt.ClaimStrings{cfg.Audience}
 	}
 
 	switch k.PrivateKey.(type) {
@@ -124,7 +130,7 @@ func generateToken(k *SigningKeyPair, issuer, audience string, c *CustomClaims, 
 		method = jwt.SigningMethodRS256
 	}
 
-	t := jwt.NewWithClaims(method, c)
+	t := jwt.NewWithClaims(method, cfg.Claims)
 	t.Header["kid"] = jwkThumbprint(k.PublicKey)
 	token, err := t.SignedString(k.PrivateKey)
 	if err != nil {
