@@ -172,6 +172,9 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 		cred, err := generateToken(k, e.httpURL(), cfg)
 		if err != nil {
 			log.Fatalf("error: could not generate token: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "%v", err)
+			return
 		}
 		data := OAuthToken{
 			AccessToken: cred.Token,
@@ -245,7 +248,7 @@ func homePageHTML(keyType string) string {
     <li><a href="%s">JSON Web Key Set (JWKS)</a></li>
     <li><a href="%s">OpenID Connect (OIDC) Configuration</a></li>
 	<li><a href="/token">New token via OAuth 2.0 response</a></li>
-    <li><a href="/%s">Public Key [%s]</a></li>
+    <li><a href="/%s">Download public key [%s]</a></li>
   </ul>
   <a href="https://github.com/tr1ck3r/jwt-this#readme">README</a> |
   <a href="https://github.com/tr1ck3r/jwt-this/releases/latest">Latest Release</a> |
