@@ -247,7 +247,7 @@ func homePageHTML(keyType string) string {
   <ul>
     <li><a href="%s">JSON Web Key Set (JWKS)</a></li>
     <li><a href="%s">OpenID Connect (OIDC) Configuration</a></li>
-	<li><a href="/token">New token via OAuth 2.0 response</a></li>
+    <li><a href="/token">New token via OAuth 2.0 response</a></li>
     <li><a href="/%s">Download public key [%s]</a></li>
   </ul>
   <a href="https://github.com/tr1ck3r/jwt-this#readme">README</a> |
