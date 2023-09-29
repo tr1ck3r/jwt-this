@@ -21,6 +21,7 @@ publish:
 		--tag $(IMAGE) \
 		.
 
+.PHONY: binaries # Build and package binaries for a new release
 binaries:
 	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o jwt-this
 	zip -j jwt-this_linux.zip -m jwt-this
