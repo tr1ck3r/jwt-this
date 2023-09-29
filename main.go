@@ -38,6 +38,12 @@ type OidcDiscovery struct {
 	JwksURI string `json:"jwks_uri"`
 }
 
+type OAuthToken struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+	TokenType   string `json:"token_type"`
+}
+
 func main() {
 	var (
 		endpoint       = Endpoint{}
@@ -49,7 +55,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.1.3",
+		Version:           "1.1.4",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -69,7 +75,12 @@ func main() {
 				log.Fatalf("error: could not generate key pair: %v\n", err)
 			}
 
-			cred, err := generateToken(signingKey, endpoint.httpURL(), audience, &claims, validity)
+			tokenConfig := TokenConfig{
+				Audience: audience,
+				Claims:   &claims,
+				Validity: validity,
+			}
+			cred, err := generateToken(signingKey, endpoint.httpURL(), tokenConfig)
 			if err != nil {
 				log.Fatalf("error: could not generate token: %v\n", err)
 			}
@@ -95,7 +106,7 @@ func main() {
 			fmt.Printf("JWKS URL:  %s\n\n", endpoint.httpURL(JWKS_URI_PATH))
 			fmt.Printf("OIDC Discovery Base URL:  %s\n\n", endpoint.httpURL())
 
-			err = startJwksHttpServer(&endpoint, signingKey)
+			err = startJwksHttpServer(&endpoint, signingKey, tokenConfig)
 			if err != nil {
 				log.Fatalf("error: could not start JWKS HTTP server: %v\n", err)
 			}
@@ -113,7 +124,7 @@ func main() {
 	rootCmd.Execute()
 }
 
-func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
+func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error {
 	// make JWKS available at JWKS_URI_PATH
 	http.HandleFunc(JWKS_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "No-Store")
@@ -154,6 +165,26 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
 		fmt.Fprintf(w, "%s", string(oidc))
 	})
 
+	http.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "No-Store")
+		w.Header().Set("Content-Type", "application/json")
+
+		cred, err := generateToken(k, e.httpURL(), cfg)
+		if err != nil {
+			log.Fatalf("error: could not generate token: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "%v", err)
+			return
+		}
+		data := OAuthToken{
+			AccessToken: cred.Token,
+			ExpiresIn:   int(cfg.Validity.Seconds()),
+			TokenType:   "Bearer",
+		}
+		token, _ := json.MarshalIndent(data, "", "  ")
+		fmt.Fprintf(w, "%s", string(token))
+	})
+
 	// make signing public key available to download
 	http.HandleFunc("/"+PUBLIC_KEY_FILENAME, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "No-Store")
@@ -166,7 +197,7 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair) error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, homePageHTML(k.Type))
+		fmt.Fprint(w, homePageHTML(k.Type))
 	})
 
 	if e.KeyCert != nil {
@@ -201,7 +232,7 @@ func getPrimaryNetAddr() string {
 }
 
 func homePageHTML(keyType string) string {
-	return fmt.Sprintf(`
+	return strings.TrimSpace(fmt.Sprintf(`
 <html>
 <head>
   <title>jwt-this</title>
@@ -216,14 +247,15 @@ func homePageHTML(keyType string) string {
   <ul>
     <li><a href="%s">JSON Web Key Set (JWKS)</a></li>
     <li><a href="%s">OpenID Connect (OIDC) Configuration</a></li>
-    <li><a href="/%s">Public Key [%s]</a></li>
+    <li><a href="/token">New token via OAuth 2.0 response</a></li>
+    <li><a href="/%s">Download public key [%s]</a></li>
   </ul>
   <a href="https://github.com/tr1ck3r/jwt-this#readme">README</a> |
   <a href="https://github.com/tr1ck3r/jwt-this/releases/latest">Latest Release</a> |
   <a href="https://hub.docker.com/r/tr1ck3r/jwt-this">Container Image</a>
 </body>
 </html>
-`, JWKS_URI_PATH, OIDC_URI_PATH, PUBLIC_KEY_FILENAME, strings.Replace(keyType, "_", " ", 1))
+`, JWKS_URI_PATH, OIDC_URI_PATH, PUBLIC_KEY_FILENAME, strings.Replace(keyType, "_", " ", 1)))
 }
 
 func (e *Endpoint) httpURL(path ...string) string {
