@@ -71,9 +71,9 @@ func generateKeyPair(signingKeyType string) (keyPair *SigningKeyPair, err error)
 		keyPair = &SigningKeyPair{
 			Type:          "EC_P256",
 			PublicKey:     &privateKey.PublicKey,
-			PublicKeyPEM:  string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: privateKeyBytes})),
+			PublicKeyPEM:  string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: publicKeyBytes})),
 			PrivateKey:    privateKey,
-			PrivateKeyPEM: string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: publicKeyBytes})),
+			PrivateKeyPEM: string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyBytes})),
 		}
 		return keyPair, nil
 
@@ -94,9 +94,9 @@ func generateKeyPair(signingKeyType string) (keyPair *SigningKeyPair, err error)
 		keyPair = &SigningKeyPair{
 			Type:          "RSA_2048",
 			PublicKey:     &privateKey.PublicKey,
-			PublicKeyPEM:  string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: privateKeyBytes})),
+			PublicKeyPEM:  string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: publicKeyBytes})),
 			PrivateKey:    privateKey,
-			PrivateKeyPEM: string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: publicKeyBytes})),
+			PrivateKeyPEM: string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyBytes})),
 		}
 		return keyPair, nil
 	}
