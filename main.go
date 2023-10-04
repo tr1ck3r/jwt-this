@@ -55,7 +55,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.1.4",
+		Version:           "1.1.5",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
