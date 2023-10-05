@@ -87,6 +87,11 @@ OIDC Discovery Base URL:  http://10.20.30.40:8000
   "jwks_uri": "http://10.20.30.40:8000/.well-known/jwks.json"
 }
 ```
+`GET http://10.20.30.40:8000/`
+
+![jwt-this home page](homepage.png)
+
+
 ## Help
 ```
 JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly
