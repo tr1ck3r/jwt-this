@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -166,9 +167,6 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 	})
 
 	http.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "No-Store")
-		w.Header().Set("Content-Type", "application/json")
-
 		cred, err := generateToken(k, e.httpURL(), cfg)
 		if err != nil {
 			log.Fatalf("error: could not generate token: %v\n", err)
@@ -176,6 +174,23 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 			fmt.Fprintf(w, "%v", err)
 			return
 		}
+
+		// for ?jwt.io querystring, redirect to jwt.io instead of OAuth 2.0 response
+		for key := range r.URL.Query() {
+			if key == "jwt.io" {
+				params := url.Values{
+					"token":     []string{cred.Token},
+					"publicKey": []string{strings.ReplaceAll(k.PublicKeyPEM, "\n", "")},
+				}
+				w.Header().Set("Location", fmt.Sprintf("https://jwt.io?%s", params.Encode()))
+				w.WriteHeader(http.StatusFound)
+				return
+			}
+		}
+
+		w.Header().Set("Cache-Control", "No-Store")
+		w.Header().Set("Content-Type", "application/json")
+
 		data := OAuthToken{
 			AccessToken: cred.Token,
 			ExpiresIn:   int(cfg.Validity.Seconds()),
@@ -248,6 +263,7 @@ func homePageHTML(keyType string) string {
     <li><a href="%s">JSON Web Key Set (JWKS)</a></li>
     <li><a href="%s">OpenID Connect (OIDC) Configuration</a></li>
     <li><a href="/token">New token via OAuth 2.0 response</a></li>
+    <li><a href="/token?jwt.io">New token via JWT.io presentation</a></li>
     <li><a href="/%s">Download public key [%s]</a></li>
   </ul>
   <a href="https://github.com/tr1ck3r/jwt-this#readme">README</a> |
