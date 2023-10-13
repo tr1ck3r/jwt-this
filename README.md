@@ -26,7 +26,7 @@ to request certificates from a *Firefly* using a Configuration named "Eval Confi
 certificate requests using any policy associated with the *Firefly* configuration, and serve up
 the JWKS on port 12345:
 ```sh
-jwt-this -p 12345 -t rsa -v 5m30s --config-name "Eval Config" --all-policies
+jwt-this -p 12345 -t rsa -v 5m30s --config-name "Eval Config"
 ```
 
 ### Output Samples
