@@ -84,7 +84,18 @@ OIDC Discovery Base URL:  http://10.20.30.40:8000
 ```json
 {
   "issuer": "http://10.20.30.40:8000",
-  "jwks_uri": "http://10.20.30.40:8000/.well-known/jwks.json"
+  "token_endpoint": "http://10.20.30.40:8000/token",
+  "jwks_uri": "http://10.20.30.40:8000/.well-known/jwks.json",
+  "claims_supported": [
+    "iss",
+    "sub",
+    "aud",
+    "exp",
+    "iat",
+    "venafi-firefly.configuration",
+    "venafi-firefly.allowedPolicies",
+    "venafi-firefly.allowAllPolicies"
+  ]
 }
 ```
 `GET http://10.20.30.40:8000/`

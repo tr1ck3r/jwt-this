@@ -22,10 +22,24 @@ import (
 )
 
 const (
+	TOKEN_URI_PATH      = "/token"
 	OIDC_URI_PATH       = "/.well-known/openid-configuration"
 	JWKS_URI_PATH       = "/.well-known/jwks.json"
 	PUBLIC_KEY_FILENAME = "public-key.pem"
 )
+
+func claimsSupported() []string {
+	return []string{
+		"iss",
+		"sub",
+		"aud",
+		"exp",
+		"iat",
+		"venafi-firefly.configuration",
+		"venafi-firefly.allowedPolicies",
+		"venafi-firefly.allowAllPolicies",
+	}
+}
 
 type Endpoint struct {
 	Host    string
@@ -35,8 +49,10 @@ type Endpoint struct {
 }
 
 type OidcDiscovery struct {
-	Issuer  string `json:"issuer"`
-	JwksURI string `json:"jwks_uri"`
+	Issuer          string   `json:"issuer"`
+	TokenEndpoint   string   `json:"token_endpoint"`
+	JwksURI         string   `json:"jwks_uri"`
+	ClaimsSupported []string `json:"claims_supported"`
 }
 
 type OAuthToken struct {
@@ -56,7 +72,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.1.5",
+		Version:           "1.1.6",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -159,14 +175,16 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "application/json")
 		data := OidcDiscovery{
-			Issuer:  e.httpURL(),
-			JwksURI: e.httpURL(JWKS_URI_PATH),
+			Issuer:          e.httpURL(),
+			TokenEndpoint:   e.httpURL(TOKEN_URI_PATH),
+			JwksURI:         e.httpURL(JWKS_URI_PATH),
+			ClaimsSupported: claimsSupported(),
 		}
 		oidc, _ := json.MarshalIndent(data, "", "  ")
 		fmt.Fprintf(w, "%s", string(oidc))
 	})
 
-	http.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(TOKEN_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
 		cred, err := generateToken(k, e.httpURL(), cfg)
 		if err != nil {
 			log.Fatalf("error: could not generate token: %v\n", err)
