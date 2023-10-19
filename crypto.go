@@ -18,6 +18,7 @@ import (
 	"math/big"
 	random "math/rand"
 	"net"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,17 +34,19 @@ type SigningKeyPair struct {
 }
 
 type TokenConfig struct {
-	Audience string
-	Claims   *CustomClaims
-	Validity time.Duration
+	Audience      string
+	FireflyClaims *FireflyClaims
+	Validity      time.Duration
 }
 
-type CustomClaims struct {
+type FireflyClaims struct {
 	jwt.RegisteredClaims
-	Configuration    string   `json:"venafi-firefly.configuration,omitempty"`
-	AllowedPolicies  []string `json:"venafi-firefly.allowedPolicies,omitempty"`
-	AllowAllPolicies *bool    `json:"venafi-firefly.allowAllPolicies,omitempty"`
+	Configuration    string   // venafi-firefly.configuration
+	AllowedPolicies  []string // venafi-firefly.allowedPolicies
+	AllowAllPolicies *bool    // venafi-firefly.allowAllPolicies
 }
+
+type CustomClaims map[string]interface{}
 
 type Credential struct {
 	Token      string
@@ -104,23 +107,37 @@ func generateKeyPair(signingKeyType string) (keyPair *SigningKeyPair, err error)
 	return nil, fmt.Errorf("invalid signing key type: %s", signingKeyType)
 }
 
-func generateToken(k *SigningKeyPair, issuer string, cfg TokenConfig) (cred *Credential, err error) {
+func generateToken(k *SigningKeyPair, issuer string, cfg TokenConfig, custom *CustomClaims) (cred *Credential, err error) {
 	var method jwt.SigningMethod
 
-	// only include venafi-firefly.allowAllPolicies claim when at least one of the other venafi-firefly claims is set
-	anyPolicy := (len(cfg.Claims.AllowedPolicies) == 0)
-	if cfg.Claims.Configuration != "" || !anyPolicy {
-		cfg.Claims.AllowAllPolicies = &anyPolicy
-	}
-
-	cfg.Claims.RegisteredClaims = jwt.RegisteredClaims{
-		Subject:   "jwt-this",
-		Issuer:    issuer,
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(cfg.Validity)),
+	// initialize registered claims
+	claims := jwt.MapClaims{
+		"sub": "jwt-this",
+		"iss": issuer,
+		"iat": jwt.NewNumericDate(time.Now()),
+		"eat": jwt.NewNumericDate(time.Now().Add(cfg.Validity)),
 	}
 	if cfg.Audience != "" {
-		cfg.Claims.RegisteredClaims.Audience = jwt.ClaimStrings{cfg.Audience}
+		claims["aud"] = cfg.Audience
+	}
+
+	// add Firefly claims
+	if cfg.FireflyClaims.Configuration != "" {
+		claims["venafi-firefly.configuration"] = cfg.FireflyClaims.Configuration
+		claims["venafi-firefly.allowAllPolicies"] = true
+	}
+	if len(cfg.FireflyClaims.AllowedPolicies) > 0 {
+		claims["venafi-firefly.allowedPolicies"] = cfg.FireflyClaims.AllowedPolicies
+		claims["venafi-firefly.allowAllPolicies"] = false
+	}
+
+	// add custom claims if they aren't a natively supported claim
+	if custom != nil {
+		for k, v := range *custom {
+			if !slices.Contains(claimsSupported(), k) {
+				claims[k] = v
+			}
+		}
 	}
 
 	switch k.PrivateKey.(type) {
@@ -130,7 +147,7 @@ func generateToken(k *SigningKeyPair, issuer string, cfg TokenConfig) (cred *Cre
 		method = jwt.SigningMethodRS256
 	}
 
-	t := jwt.NewWithClaims(method, cfg.Claims)
+	t := jwt.NewWithClaims(method, claims)
 	t.Header["kid"] = jwkThumbprint(k.PublicKey)
 	token, err := t.SignedString(k.PrivateKey)
 	if err != nil {
