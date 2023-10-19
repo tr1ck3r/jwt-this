@@ -123,6 +123,19 @@ Flags:
       --version                version for jwt-this
 ```
 
+## Custom Claims
+
+The `/token` endpoint supports generating JWTs that include arbitrary custom claims when invoked via `POST`.
+Specify claim name-value pairs using a payload appropriate for the `application/x-www-form-urlencoded`
+HTTP content type.  For example, to get a JWT that includes `name`, `role`, and `email` custom claims
+using `curl`:
+
+```sh
+curl -d "name=John+Doe&role=Administrator&email=john.doe@company.example" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -X POST http://10.20.30.40:8000/token
+```
+
 ## Running as a Container
 
 It may be more convenient in some cases to run `jwt-this` as container so I've built and published a

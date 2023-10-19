@@ -66,13 +66,13 @@ func main() {
 		endpoint       = Endpoint{}
 		signingKeyType string
 		audience       string
-		claims         CustomClaims
+		fireflyClaims  FireflyClaims
 		validTime      string
 	)
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.1.6",
+		Version:           "1.2.0",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -93,11 +93,11 @@ func main() {
 			}
 
 			tokenConfig := TokenConfig{
-				Audience: audience,
-				Claims:   &claims,
-				Validity: validity,
+				Audience:      audience,
+				FireflyClaims: &fireflyClaims,
+				Validity:      validity,
 			}
-			cred, err := generateToken(signingKey, endpoint.httpURL(), tokenConfig)
+			cred, err := generateToken(signingKey, endpoint.httpURL(), tokenConfig, nil)
 			if err != nil {
 				log.Fatalf("error: could not generate token: %v\n", err)
 			}
@@ -132,8 +132,8 @@ func main() {
 
 	rootCmd.Flags().StringVarP(&signingKeyType, "key-type", "t", "ecdsa", "Signing key type, ECDSA or RSA.")
 	rootCmd.Flags().StringVarP(&audience, "audience", "a", "", "Include 'aud' claim in the JWT with the specified value.")
-	rootCmd.Flags().StringVar(&claims.Configuration, "config-name", "", "Name of the Firefly Configuration for which the token is valid.")
-	rootCmd.Flags().StringSliceVar(&claims.AllowedPolicies, "policy-names", []string{}, "Comma separated list of Firefly Policy Names for which the token is valid.")
+	rootCmd.Flags().StringVar(&fireflyClaims.Configuration, "config-name", "", "Name of the Firefly Configuration for which the token is valid.")
+	rootCmd.Flags().StringSliceVar(&fireflyClaims.AllowedPolicies, "policy-names", []string{}, "Comma separated list of Firefly Policy Names for which the token is valid.")
 	rootCmd.Flags().StringVar(&endpoint.Host, "host", getPrimaryNetAddr(), "Host to use in claim URIs.")
 	rootCmd.Flags().IntVarP(&endpoint.Port, "port", "p", 8000, "TCP port on which JWKS HTTP server will listen.")
 	rootCmd.Flags().BoolVar(&endpoint.UseTLS, "tls", false, "Generate a self-signed certificate and use HTTPS instead of HTTP for URLs.")
@@ -144,6 +144,11 @@ func main() {
 func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error {
 	// make JWKS available at JWKS_URI_PATH
 	http.HandleFunc(JWKS_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, "Method Not Allowed")
+			return
+		}
 		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "application/json")
 
@@ -172,6 +177,11 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 
 	// make JWKS URL known through OIDC Discovery
 	http.HandleFunc(OIDC_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, "Method Not Allowed")
+			return
+		}
 		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "application/json")
 		data := OidcDiscovery{
@@ -185,7 +195,33 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 	})
 
 	http.HandleFunc(TOKEN_URI_PATH, func(w http.ResponseWriter, r *http.Request) {
-		cred, err := generateToken(k, e.httpURL(), cfg)
+		var customClaims CustomClaims
+
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, "Method Not Allowed")
+			return
+		}
+
+		err := r.ParseForm()
+		if err != nil {
+			log.Fatalf("error: could not parse form variables: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "%v", err)
+			return
+		}
+		if len(r.PostForm) > 0 {
+			customClaims = CustomClaims{}
+			for k, v := range r.PostForm {
+				if len(v) > 1 {
+					customClaims[k] = v
+				} else if v[0] != "" { // skip valueless claims
+					customClaims[k] = v[0]
+				}
+			}
+		}
+
+		cred, err := generateToken(k, e.httpURL(), cfg, &customClaims)
 		if err != nil {
 			log.Fatalf("error: could not generate token: %v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -193,17 +229,15 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 			return
 		}
 
-		// for ?jwt.io querystring, redirect to jwt.io instead of OAuth 2.0 response
-		for key := range r.URL.Query() {
-			if key == "jwt.io" {
-				params := url.Values{
-					"token":     []string{cred.Token},
-					"publicKey": []string{strings.ReplaceAll(k.PublicKeyPEM, "\n", "")},
-				}
-				w.Header().Set("Location", fmt.Sprintf("https://jwt.io?%s", params.Encode()))
-				w.WriteHeader(http.StatusFound)
-				return
+		// for GET /token?jwt.io redirect to jwt.io instead of OAuth 2.0 response
+		if _, ok := r.Form["jwt.io"]; ok && r.Method == http.MethodGet {
+			params := url.Values{
+				"token":     []string{cred.Token},
+				"publicKey": []string{strings.ReplaceAll(k.PublicKeyPEM, "\n", "")},
 			}
+			w.Header().Set("Location", fmt.Sprintf("https://jwt.io?%s", params.Encode()))
+			w.WriteHeader(http.StatusFound)
+			return
 		}
 
 		w.Header().Set("Cache-Control", "No-Store")
@@ -220,6 +254,11 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 
 	// make signing public key available to download
 	http.HandleFunc("/"+PUBLIC_KEY_FILENAME, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, "Method Not Allowed")
+			return
+		}
 		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "application/x-pem-file")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, PUBLIC_KEY_FILENAME))
@@ -228,6 +267,11 @@ func startJwksHttpServer(e *Endpoint, k *SigningKeyPair, cfg TokenConfig) error 
 
 	// quick links at base URL
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, "Method Not Allowed")
+			return
+		}
 		w.Header().Set("Cache-Control", "No-Store")
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, homePageHTML(k.Type))
