@@ -40,7 +40,6 @@ type TokenConfig struct {
 }
 
 type FireflyClaims struct {
-	jwt.RegisteredClaims
 	Configuration    string   // venafi-firefly.configuration
 	AllowedPolicies  []string // venafi-firefly.allowedPolicies
 	AllowAllPolicies *bool    // venafi-firefly.allowAllPolicies
