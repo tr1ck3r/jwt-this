@@ -115,7 +115,7 @@ func generateToken(k *SigningKeyPair, issuer string, cfg TokenConfig, custom *Cu
 		"sub": "jwt-this",
 		"iss": issuer,
 		"iat": jwt.NewNumericDate(time.Now()),
-		"eat": jwt.NewNumericDate(time.Now().Add(cfg.Validity)),
+		"exp": jwt.NewNumericDate(time.Now().Add(cfg.Validity)),
 	}
 	if cfg.Audience != "" {
 		claims["aud"] = cfg.Audience
