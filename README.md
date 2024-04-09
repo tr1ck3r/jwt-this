@@ -119,6 +119,7 @@ Flags:
       --policy-names strings   Comma separated list of Firefly Policy Names for which the token is valid.
   -p, --port int               TCP port on which JWKS HTTP server will listen. (default 8000)
       --tls                    Generate a self-signed certificate and use HTTPS instead of HTTP for URLs.
+  -u, --url string             Ignore --host, --port, and protocol derived from --tls and use this URL instead for claim URIs.
   -v, --validity string        Duration for which the generated token will be valid. (default "24h")
       --version                version for jwt-this
 ```
