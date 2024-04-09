@@ -46,6 +46,7 @@ type Endpoint struct {
 	Port    int
 	UseTLS  bool
 	KeyCert *[]tls.Certificate
+	BaseURL string
 }
 
 type OidcDiscovery struct {
@@ -72,7 +73,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.2.2",
+		Version:           "1.2.3",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
@@ -135,6 +136,7 @@ func main() {
 	rootCmd.Flags().StringVar(&fireflyClaims.Configuration, "config-name", "", "Name of the Firefly Configuration for which the token is valid.")
 	rootCmd.Flags().StringSliceVar(&fireflyClaims.AllowedPolicies, "policy-names", []string{}, "Comma separated list of Firefly Policy Names for which the token is valid.")
 	rootCmd.Flags().StringVar(&endpoint.Host, "host", getPrimaryNetAddr(), "Host to use in claim URIs.")
+	rootCmd.Flags().StringVarP(&endpoint.BaseURL, "url", "u", "", "Ignore --host, --port, and protocol derived from --tls and use this URL instead for claim URIs.")
 	rootCmd.Flags().IntVarP(&endpoint.Port, "port", "p", 8000, "TCP port on which JWKS HTTP server will listen.")
 	rootCmd.Flags().BoolVar(&endpoint.UseTLS, "tls", false, "Generate a self-signed certificate and use HTTPS instead of HTTP for URLs.")
 	rootCmd.Flags().StringVarP(&validTime, "validity", "v", "24h", "Duration for which the generated token will be valid.")
@@ -337,6 +339,10 @@ func homePageHTML(keyType string) string {
 }
 
 func (e *Endpoint) httpURL(path ...string) string {
+	if _, err := url.ParseRequestURI(e.BaseURL); err == nil {
+		return fmt.Sprintf("%s%s", e.BaseURL, strings.Join(path, "/"))
+	}
+
 	protocol := "http"
 	if e.UseTLS {
 		protocol = "https"
