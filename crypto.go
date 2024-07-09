@@ -122,12 +122,12 @@ func generateToken(k *SigningKeyPair, issuer string, cfg TokenConfig, custom *Cu
 
 	// add Firefly claims
 	if cfg.FireflyClaims.Configuration != "" {
-		claims["venafi-firefly.configuration"] = cfg.FireflyClaims.Configuration
-		claims["venafi-firefly.allowAllPolicies"] = true
+		claims[fireflyClaimMap["configuration"]] = cfg.FireflyClaims.Configuration
+		claims[fireflyClaimMap["allowAllPolicies"]] = true
 	}
 	if len(cfg.FireflyClaims.AllowedPolicies) > 0 {
-		claims["venafi-firefly.allowedPolicies"] = cfg.FireflyClaims.AllowedPolicies
-		claims["venafi-firefly.allowAllPolicies"] = false
+		claims[fireflyClaimMap["allowedPolicies"]] = cfg.FireflyClaims.AllowedPolicies
+		claims[fireflyClaimMap["allowAllPolicies"]] = false
 	}
 
 	// add custom claims if they aren't a natively supported claim

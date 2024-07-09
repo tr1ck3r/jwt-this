@@ -28,6 +28,12 @@ const (
 	PUBLIC_KEY_FILENAME = "public-key.pem"
 )
 
+var fireflyClaimMap = map[string]string{
+	"configuration":    "venafi-firefly.configuration",
+	"allowedPolicies":  "venafi-firefly.allowedPolicies",
+	"allowAllPolicies": "venafi-firefly.allowAllPolicies",
+}
+
 func claimsSupported() []string {
 	return []string{
 		"iss",
@@ -35,9 +41,9 @@ func claimsSupported() []string {
 		"aud",
 		"exp",
 		"iat",
-		"venafi-firefly.configuration",
-		"venafi-firefly.allowedPolicies",
-		"venafi-firefly.allowAllPolicies",
+		fireflyClaimMap["configuration"],
+		fireflyClaimMap["allowAllPolicies"],
+		fireflyClaimMap["allowedPolicies"],
 	}
 }
 
@@ -60,6 +66,18 @@ type OAuthToken struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
 	TokenType   string `json:"token_type"`
+}
+
+func init() {
+	if value, ok := os.LookupEnv("CLAIM_CONFIGURATION"); ok {
+		fireflyClaimMap["configuration"] = value
+	}
+	if value, ok := os.LookupEnv("CLAIM_ALLOW_ALL_POLICIES"); ok {
+		fireflyClaimMap["allowAllPolicies"] = value
+	}
+	if value, ok := os.LookupEnv("CLAIM_ALLOWED_POLICIES"); ok {
+		fireflyClaimMap["allowedPolicies"] = value
+	}
 }
 
 func main() {
