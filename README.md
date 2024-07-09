@@ -124,6 +124,22 @@ Flags:
       --version                version for jwt-this
 ```
 
+## Firefly Claims
+
+By default, *Firefly* looks for claims prefixed by `venafi-firefly` in the JWTs presented by its clients.
+For some enterprise identity providers it can be challenging or undesirable to define such claims so
+*Firefly* can be configured to look for alternative configuration and policy claims.  `jwt-this` can be
+used to simulate this situation by setting the following environment variables before execution:
+
+| Environment Variable       | Default Name                      |
+|----------------------------|-----------------------------------|
+| `CLAIM_CONFIGURATION`      | `venafi-firefly.configuration`    |
+| `CLAIM_ALLOWED_POLICIES`   | `venafi-firefly.allowedPolicies`  |
+| `CLAIM_ALLOW_ALL_POLICIES` | `venafi-firefly.allowAllPolicies` |
+
+The value of these claims (and whether they're present in JWTs at all) is still determined by the 
+`--config-name` and `--policy-name` command line parameters.
+
 ## Custom Claims
 
 The `/token` endpoint supports generating JWTs that include arbitrary custom claims when invoked via `POST`.
