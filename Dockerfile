@@ -1,4 +1,4 @@
-FROM golang:1.22.7 AS builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.22.7 AS builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -21,7 +21,7 @@ RUN GOPROXY=$GOPROXY go mod download
 # Build
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o jwt-this main.go crypto.go
 
-FROM scratch
+FROM --platform=${BUILDPLATFORM:-linux/amd64} scratch
 LABEL description="jwt-this is a command line utility I created to simplify demonstration, evaluation, and simple testing with Venafi Firefly"
 
 WORKDIR /
