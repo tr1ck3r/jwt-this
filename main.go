@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
+	jose "github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/cobra"
-	jose "gopkg.in/go-jose/go-jose.v2"
 )
 
 const (
@@ -91,7 +91,7 @@ func main() {
 
 	var rootCmd = &cobra.Command{
 		Use:               "jwt-this",
-		Version:           "1.2.5",
+		Version:           "1.2.6",
 		Long:              "JSON Web Token (JWT) generator & JSON Web Key Set (JWKS) server for evaluating Venafi Firefly",
 		Args:              cobra.NoArgs,
 		CompletionOptions: cobra.CompletionOptions{HiddenDefaultCmd: true, DisableDefaultCmd: true},
