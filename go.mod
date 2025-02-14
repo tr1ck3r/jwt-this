@@ -1,4 +1,4 @@
-module ryantreat.com/jwt-this/v2
+module github.com/tr1ck3r/jwt-this
 
 go 1.23.6
 
